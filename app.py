@@ -105,7 +105,7 @@ def get_pending_invoice_for_user(user_id):
     return row[0] if row else None
 
 # --- CryptoBot client ---
-client = CryptoBotClient(api_token=CRYPTOBOT_API_TOKEN, is_mainnet=True)
+client = CryptoBotClient(api_token=CRYPTOBOT_API_TOKEN, is_mainnet=False)
 
 # --- Функции оплаты ---
 def generate_crypto_invoice(user_id):
