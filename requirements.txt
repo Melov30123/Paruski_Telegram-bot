@@ -1,0 +1,6 @@
+python-telegram-bot==13.15
+Flask==2.3.3
+requests==2.31.0
+python-dotenv
+cryptobot-python
+psycopg2-binary
