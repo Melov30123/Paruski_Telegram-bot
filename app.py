@@ -191,6 +191,8 @@ def check_payment_callback(update, context):
     query = update.callback_query
     query.answer()
     user_id = query.from_user.id
+
+    # Если уже есть доступ
     if is_purchased(user_id):
         query.edit_message_text("✅ Ya recibiste el acceso. El curso ha sido enviado.")
         main_menu(context.bot, user_id, "¿Algo más?")
@@ -201,6 +203,38 @@ def check_payment_callback(update, context):
         query.edit_message_text("No se encontraron pagos pendientes. Inicia una nueva compra.")
         main_menu(context.bot, user_id, "Menú principal:")
         return
+
+    # Преобразуем invoice_id в целое число, так как API CryptoBot требует integer
+    try:
+        inv_id_int = int(inv_id)
+    except (ValueError, TypeError):
+        logger.error(f"Invalid invoice_id format: {inv_id} (user {user_id})")
+        query.edit_message_text("❌ Error: formato de ID de factura inválido. Por favor, crea una nueva orden.")
+        # Удаляем некорректную запись из БД
+        remove_pending_invoice(inv_id)
+        main_menu(context.bot, user_id, "Menú principal:")
+        return
+
+    # Запрос статуса через API CryptoBot
+    try:
+        invoices = client.get_invoices(invoice_ids=[inv_id_int])
+        if invoices:
+            invoice = invoices[0]
+            if invoice.status == Status.paid:
+                # Платёж подтверждён
+                add_purchase(user_id, inv_id, PRICE_USDT)
+                remove_pending_invoice(inv_id)
+                send_product(context.bot, user_id)
+                query.edit_message_text("✅ ¡Pago confirmado! El curso ha sido enviado.")
+            else:
+                query.edit_message_text(f"⏳ El pago aún no se ha recibido. Estado actual: {invoice.status.value}. Inténtalo más tarde.")
+        else:
+            query.edit_message_text("❌ Error al verificar el estado. No se encontró la factura.")
+    except Exception as e:
+        logger.error(f"Check payment error: {e}")
+        query.edit_message_text("❌ Error al verificar el estado. Inténtalo más tarde.")
+
+    main_menu(context.bot, user_id, "Menú principal:")
 
     # Запрос статуса через CryptoBot API
     try:
