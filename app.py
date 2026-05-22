@@ -158,6 +158,20 @@ def cancel_invoice(update, context):
     else:
         update.message.reply_text("No hay pagos pendientes.")
 
+def force_clean(update, context):
+    """Удаляет запись о pending_invoice из БД для текущего пользователя (принудительно)."""
+    user_id = update.message.from_user.id
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute("DELETE FROM pending_invoices WHERE user_id = %s", (user_id,))
+    deleted = cur.rowcount
+    conn.commit()
+    conn.close()
+    if deleted:
+        update.message.reply_text("✅ La orden de pago pendiente ha sido eliminada. Ahora puedes crear una nueva.")
+    else:
+        update.message.reply_text("No hay órdenes pendientes para eliminar.")
+
 def my_sub_callback(update, context):
     query = update.callback_query
     query.answer()
@@ -271,6 +285,7 @@ def main():
     dp.add_handler(CallbackQueryHandler(check_payment_callback, pattern="^check_payment$"))
     dp.add_handler(CallbackQueryHandler(back_to_menu_callback, pattern="^back_to_menu$"))
     dp.add_handler(CommandHandler("cancel_invoice", cancel_invoice))
+    dp.add_handler(CommandHandler("force_clean", force_clean))
     updater.start_polling()
     updater.idle()
 
