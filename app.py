@@ -145,6 +145,19 @@ def start(update, context):
     user_id = update.message.from_user.id
     main_menu(context.bot, user_id, "¡Bienvenido! Elige una opción:")
 
+def cancel_invoice(update, context):
+    user_id = update.message.from_user.id
+    inv_id = get_pending_invoice_for_user(user_id)
+    if inv_id:
+        try:
+            client.delete_invoice(invoice_id=inv_id)
+            remove_pending_invoice(inv_id)
+            update.message.reply_text("✅ El pago pendiente ha sido cancelado. Ahora puedes crear uno nuevo.")
+        except Exception as e:
+            update.message.reply_text(f"❌ Error al cancelar: {e}")
+    else:
+        update.message.reply_text("No hay pagos pendientes.")
+
 def my_sub_callback(update, context):
     query = update.callback_query
     query.answer()
@@ -257,6 +270,7 @@ def main():
     dp.add_handler(CallbackQueryHandler(my_sub_callback, pattern="^my_sub$"))
     dp.add_handler(CallbackQueryHandler(check_payment_callback, pattern="^check_payment$"))
     dp.add_handler(CallbackQueryHandler(back_to_menu_callback, pattern="^back_to_menu$"))
+    dp.add_handler(CommandHandler("cancel_invoice", cancel_invoice))
     updater.start_polling()
     updater.idle()
 
