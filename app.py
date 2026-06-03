@@ -176,16 +176,20 @@ def my_sub_callback(update, context):
     query = update.callback_query
     query.answer()
     user_id = query.from_user.id
+
     if is_purchased(user_id):
-        text = "✅ Tienes acceso activo al curso."
-    else:
-        # Проверяем, есть ли ожидающий платёж
-        pending = get_pending_invoice_for_user(user_id)
-        if pending:
-            text = "⏳ Tienes un pago pendiente. Completa el pago y presiona «Verificar pago»."
+        # У пользователя есть доступ — отправляем ссылку
+        if PDF_DOWNLOAD_LINK:
+            context.bot.send_message(
+                user_id,
+                f"✅ Tienes acceso activo. Descarga el curso aquí: {PDF_DOWNLOAD_LINK}"
+            )
+            query.edit_message_text("✅ Acceso confirmado. Revisa tu chat, he enviado el enlace.")
         else:
-            text = "❌ No tienes acceso. Presiona «Comprar curso»."
-    main_menu(context.bot, user_id, text)
+            query.edit_message_text("❌ El enlace no ha sido configurado.")
+    else:
+        query.edit_message_text("❌ No tienes acceso. Presiona «Comprar curso».")
+        main_menu(context.bot, user_id, "Menú principal:")
 
 def check_payment_callback(update, context):
     query = update.callback_query
@@ -287,6 +291,32 @@ def back_to_menu_callback(update, context):
     user_id = query.from_user.id
     main_menu(context.bot, user_id, "Menú principal:")
 
+def revoke_access(update, context):
+    # Проверка: только администратор может отзывать доступ
+    user_id = update.message.from_user.id
+    if user_id != ADMIN_ID:
+        update.message.reply_text("⛔ У вас нет прав для этой команды.")
+        return
+
+    # Получаем ID пользователя, которому нужно отозвать доступ
+    try:
+        target_user_id = int(context.args[0])
+    except (IndexError, ValueError):
+        update.message.reply_text("❌ Использование: /revoke <telegram_user_id>")
+        return
+
+    conn = get_db_connection()
+    c = conn.cursor()
+    c.execute("DELETE FROM purchases WHERE user_id = %s", (target_user_id,))
+    deleted = c.rowcount
+    conn.commit()
+    conn.close()
+
+    if deleted:
+        update.message.reply_text(f"✅ Доступ пользователя {target_user_id} отозван.")
+    else:
+        update.message.reply_text(f"❌ Пользователь {target_user_id} не найден в базе.")
+
 # --- Flask для вебхука (уведомления от CryptoBot) ---
 flask_app = Flask(__name__)
 
@@ -320,6 +350,7 @@ def main():
     dp.add_handler(CallbackQueryHandler(back_to_menu_callback, pattern="^back_to_menu$"))
     dp.add_handler(CommandHandler("cancel_invoice", cancel_invoice))
     dp.add_handler(CommandHandler("force_clean", force_clean))
+    dp.add_handler(CommandHandler("revoke", revoke_access))
     updater.start_polling()
     updater.idle()
 
