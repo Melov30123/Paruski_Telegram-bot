@@ -18,6 +18,7 @@ CRYPTOBOT_API_TOKEN = os.getenv("CRYPTOBOT_API_TOKEN")
 PDF_DOWNLOAD_LINK = os.getenv("PDF_DOWNLOAD_LINK", "https://drive.google.com/your-link")
 PRICE_USDT = float(os.getenv("PRICE_USDT", "10"))
 DATABASE_URL = os.getenv("DATABASE_URL")
+ADMIN_ID = int(os.getenv("ADMIN_ID", 0))
 
 if not DATABASE_URL:
     raise ValueError("DATABASE_URL не задана! Добавьте переменную окружения.")
